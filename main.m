@@ -2,12 +2,14 @@
 
 stngs = struct();
 stngs.plotoutput = true;           % activate plotting of data
+stngs.NumFigs = 4;
 stngs.ptPlot = false;               % activate calculation and plotting of the point Cloud object
 stngs.normalize = true;             % normalize data so a unit of 1, if x/y cell size will be set to 1, z values scaled accordingly
 stngs.scalez = 1.5;
 stngs.subsamp = true;               % activate subsampling of data
 stngs.limitArea = true;
 stngs.stlout = false;               % activate exporting of .stl file
+stngs.defpath = 'D:\02_Documents\04_Projekte\couchtisch\02_rohdaten\';
 
 %% User specified I/O
 importlv = true;                % if no data present, import always
@@ -37,7 +39,7 @@ if importlv
     stngs.dtypes = {'*.mat','MATLAB Files (*.mat)';...
                     '*.asc;*.txt','GIS files (*.asc,*.txt)';...
                     '*.*','All Files (*.*)'};                               % data types
-    [stngs.fnin,stngs.pin,stngs.ftind] = uigetfile(stngs.dtypes,'Select data file...');
+    [stngs.fnin,stngs.pin,stngs.ftind] = uigetfile(stngs.dtypes,'Select data file...',stngs.defpath);
     switch stngs.ftind                                                      % switch behaviour for file type index
         case 0                  % case: abort
             fprintf('[ %s ] user discarded import.\n',datestr(now,'HH:mm:SS'));
@@ -63,6 +65,28 @@ if importlv
     end
 end
 clearvars importlv;
+
+%% prepare plotting
+if stngs.plotoutput
+    % create figure
+    curFigs = numel(findobj('type','figure'));
+    createFigH = false;
+    copyFigH = false;
+    if ~curFigs                                                             % create the figures "from scratch"
+        for fig=1:stngs.NumFigs
+            figH(fig) = figure();
+        end
+    else                                                                    % create our own, known, figure handles, append if neccessary
+        figH = findobj('type','figure');
+        for fig = (numel(figH)+1):stngs.NumFigs
+            figH(fig) = figure();
+        end
+    end
+    for fig=1:stngs.NumFigs
+        set(figH(fig),'WindowStyle','docked');
+    end
+    clearvars fig
+end
 
 %% preprocess data after import
 if ~meta.InitProcessDone
@@ -135,8 +159,12 @@ end
 xmask = logical(xmask);
 ymask = logical(ymask);
 datamask = logical(xmask .* ymask);
-imshowpair(data,datamask)
 xyz_data=grid2cart(x_vals(xmask),y_vals(ymask),data(datamask));
+
+set(0,'CurrentFigure',figH(1))
+figH(1).Name = 'ImshowPair';
+imshowpair(data,datamask)
+
 clearvars areaname datamask x_lim y_lim xmask ymask
 
 return;
@@ -152,24 +180,12 @@ pcshow(TR2.Points,squeeze(ind2rgb((distvec./max(distvec,[],'all')),parula)));
 
 if stngs.ptPlot
     tic
-    ptCloud = pointCloud(xyz_data);
-    ptCloud.Normal = pcnormals(ptCloud);
+    ptCloud = pointCloud(xyz_data);                                         % it might not be neccessary to create a point cloud fist
+    ptCloud.Normal = pcnormals(ptCloud);                                    % ToDo: performance tests
     fprintf('[ %s ] create ptCloud object: %.3f sec.\n',datestr(now,'HH:mm:ss'),toc)
 end
 %% plotting
 if stngs.plotoutput
-    % create figure
-    if exist('figH','var')
-        createFigH = false;
-        if ~isvalid(figH)
-            createFigH = true;
-        end
-    else
-        createFigH = true;
-    end
-    if createFigH
-        figH = figure();
-    end
     set(0,'CurrentFigure',figH);        % activate current figure
     clf; hold on;
     % point cloud of raw data
