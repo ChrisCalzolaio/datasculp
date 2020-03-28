@@ -1,6 +1,6 @@
 function [cartCoord] = grid2cart(xvec,yvec,hmap)
 %[cartCoord] = grid2cart(xvec,yvec,hmap) Creates a Nx3 matrix of cartesian coordinates from gridded data
-%   expects empty cell values to be replaces by NaNs beforehand
+%   expects empty cell values to be replaced by NaNs beforehand
 
 tic
 xvec = xvec(:)';                        % returns a row vector
