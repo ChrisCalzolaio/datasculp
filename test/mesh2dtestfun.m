@@ -1,9 +1,9 @@
-[TR,shp] = execAlphaShp(xyz_data(:,1:2),'Holethreshold',1e4);
+% [TR,shp] = execAlphaShp(xyz_data(:,1:2),'Holethreshold',1e4);
 [fbConn, fbFacets] = TR.freeBoundary;
 bboxVert = [bbox;bbox(:,1),flipud(bbox(:,2))]; 
 bboxVertConn = [1 3;3 2;2 4;4 1];
 
-node = [fbFacets;bboxVert];
+node = [fbFacets(:,1:2);bboxVert];
 edge = [fbConn;bboxVertConn+length(fbConn)];
 
 

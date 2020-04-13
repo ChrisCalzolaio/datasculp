@@ -177,11 +177,11 @@ clearvars areaname datamask x_lim y_lim xmask ymask
 % [TR,Normal] = execTrngl(xyz_data);
 
 %% using alpha shape
-TR2 = execAlphaShp(xyz_data,'PlotOut',true,'HoleThreshold',1e4);
-umfang = TR2.freeBoundary;
+TR = execAlphaShp(xyz_data(:,1:2),'PlotOut',true,'HoleThreshold',1e4);
+umfang = TR.freeBoundary;
 % find distance distribution
-[~,distvec] = nearestNeighbor(TR2,TR2.Points);
-pcshow(TR2.Points,squeeze(ind2rgb((distvec./max(distvec,[],'all')),parula)));
+[~,distvec] = nearestNeighbor(TR,TR.Points);
+pcshow(TR.Points,squeeze(ind2rgb((distvec./max(distvec,[],'all')),parula)));
 return;
 
 if stngs.ptPlot
