@@ -6,8 +6,8 @@ stngs.NumFigs = 4;
 stngs.ptPlot = false;               % activate calculation and plotting of the point Cloud object
 stngs.normalize = true;             % normalize data so a unit of 1, if x/y cell size will be set to 1, z values scaled accordingly
 stngs.scalez = 1.5;
-stngs.subsamp = true;               % activate subsampling of data
-stngs.limitArea = true;
+stngs.subsamp = false;               % activate subsampling of data
+stngs.limitArea = false;
 stngs.stlout = false;               % activate exporting of .stl file
 stngs.defpath = 'D:\02_Documents\04_Projekte\couchtisch\02_rohdaten\';
 
@@ -83,6 +83,7 @@ if stngs.plotoutput
         end
     end
     for fig=1:stngs.NumFigs
+        set(0,'CurrentFigure',figH(fig));cla;                                % clear all figures
         set(figH(fig),'WindowStyle','docked');
     end
     clearvars fig
@@ -128,12 +129,10 @@ x_vals =  (0:size(data,2)-1)' * meta.CellExtentInWorldX;
 y_vals =  flipud((0:size(data,1)-1)') * meta.CellExtentInWorldY;
 
 %% limit processed area
-xmask = ones(1,size(data,2));   % row vector
-ymask = ones(size(data,1),1);   % col vector
 if stngs.limitArea
-    xmask = xmask * 0;
-    ymask = ymask * 0;
-    areaname = 'untersee_subsection';
+    xmask = zeros(1,size(data,2));   % row vector
+    ymask = zeros(size(data,1),1);   % col vector
+    areaname = 'untersee';
     switch areaname
         case 'surface'
             x_lim = 3950:4050;
@@ -141,9 +140,11 @@ if stngs.limitArea
         case 'untersee'
             x_lim = 1:1000;
             y_lim = 1400:2100;
+            bbox = [-100, 1600;1100, 2500];
         case 'untersee_subsection'
             x_lim = 1:200;
             y_lim = 1650:2100;
+            bbox = [-100, 1850;300, 2100];
     end
     if meta.Subsampling.State
         x_lim = ceil(x_lim / meta.Subsampling.Factor);
@@ -154,7 +155,11 @@ if stngs.limitArea
     %     y_vals = y_vals(y_lim);
     xmask(x_lim) = 1;
     ymask(y_lim) = 1;
-    ymask = ymask;
+%     ymask = ymask;
+else
+    xmask = ones(1,size(data,2));   % row vector
+    ymask = ones(size(data,1),1);   % col vector
+    bbox = [-100 -100; meta.RasterExtentInWorldX+100 meta.RasterExtentInWorldY+100];
 end
 xmask = logical(xmask);
 ymask = logical(ymask);
@@ -167,9 +172,9 @@ imshowpair(data,datamask)
 
 clearvars areaname datamask x_lim y_lim xmask ymask
 
-return;
+
 %% Triangulation
-[TR,Normal] = execTrngl(xyz_data);
+% [TR,Normal] = execTrngl(xyz_data);
 
 %% using alpha shape
 TR2 = execAlphaShp(xyz_data,'PlotOut',true,'HoleThreshold',1e4);
@@ -177,6 +182,7 @@ umfang = TR2.freeBoundary;
 % find distance distribution
 [~,distvec] = nearestNeighbor(TR2,TR2.Points);
 pcshow(TR2.Points,squeeze(ind2rgb((distvec./max(distvec,[],'all')),parula)));
+return;
 
 if stngs.ptPlot
     tic
