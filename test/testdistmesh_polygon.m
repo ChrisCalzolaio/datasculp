@@ -27,24 +27,9 @@ umfangy = y(k);
 pv = [umfangx(:), umfangy(:)];
 dx = diff(umfangx(:));
 dy = diff(umfangy(:));
-length = sqrt(dx.^2 + dy.^2);
+edgelength = sqrt(dx.^2 + dy.^2);
 bbox = [floor(min(pv)); ceil(max(pv))];
 bbox = [-100, 1850;300, 2100];
 
-numFigs = 4;
-if ~exist('figH','var')
-    for figs = 1:numFigs
-        figH(figs) = figure();
-    end
-elseif string(class(figH)) == 'matlab.ui.Figure'
-    for figs = 1:min(numel(figH),numFigs)
-        if ~isvalid(figH(figs))
-            figH(figs) = figure();
-        end
-    end
-    for figs=1:(numFigs-numel(figH))
-        figH(numel(figH)+1) = figure();
-    end
-end
 
-[p,t]=distmesh2dDiscrete(shp,min(length),bbox,figH);
+[p,t]=distmesh2dDiscrete(shp,min(edgelength),bbox,figH(2:4));
