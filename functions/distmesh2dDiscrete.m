@@ -28,7 +28,10 @@ function [p,t]=distmesh2dDiscrete(shp,h0,bbox,figH,varargin)
 %}
 
 % graphical output:
-set(0,'CurrentFigure',figH(3)); clf;
+for fig=1:numel(figH)
+    set(0,'CurrentFigure',figH(fig));
+    clf;
+end
 
 % logging
 varnames = {'Step','Duration','DeltaPointsAV','NumberPoints','st3t','st4t','st5t','st6t'};
@@ -48,7 +51,7 @@ bboxoffset = diff(bbox)/2;
 bboxoffset = [-bboxoffset;bboxoffset];
 extbbox = bbox + bboxoffset;  % extended bounding box
 
-set(0,'CurrentFigure',figH(1));
+set(0,'CurrentFigure',figH(2));
 plot(shp,'LineStyle','none');
 
 % 1. Create initial distribution in bounding box (equilateral triangles)
@@ -80,9 +83,6 @@ pfix = logical([zeros(length(p),1);ones(nfix,1)]);                          % ke
 p = [p; pFixed];                                               % merge outside points with boundary points
 N=length(p);                                                                % Number of points N
 
-xmask = ~(and(p(:,1)>bbox(1,1),p(:,1)<bbox(2,1)));
-ymask = ~(and(p(:,2)>bbox(1,2),p(:,2)<bbox(2,2)));
-
 % p=p(feval(fd,p,varargin{:})<geps,:);                 % Keep only d<0 points, keeps points within the shape
 % r0=1./feval(fh,p,varargin{:}).^2;                    % Probability to keep point
 % p=p(rand(size(p,1),1)<r0./max(r0),:);                % Rejection method
@@ -108,7 +108,7 @@ while 1
     % 3. Retriangulation by the Delaunay algorithm
     st3t = tic;
     if max(sqrt(sum((p-pold).^2,2))/h0)>ttol           % Any large movement?
-        set(0,'CurrentFigure',figH(1));
+        set(0,'CurrentFigure',figH(2));
         pold=p;                                          % Save current positions
         t=delaunay(p);                                  % List of triangles
         triplot(t,p(:,1),p(:,2))
@@ -127,16 +127,16 @@ while 1
         st5t = tic;
         %         cla
         %         patch('vertices',p,'faces',t,'edgecol','k','facecol',[.8,.9,1]);
-        for figs=1:2
+        for figs=2:3
             set(0,'CurrentFigure',figH(figs));
             triplot(t,p(:,1),p(:,2))
             switch figs
-                case 1
+                case 2
                     xline(bbox(1,1));xline(bbox(2,1));
                     yline(bbox(1,2));yline(bbox(2,2));
-%                     set(gca,'XLim',[-200 600],'DataAspectRatio',[1 1 1])
-                case  2
-                    set(gca,'XLim',[-25 85], 'YLim',[1950 2075])
+                    set(gca,'XLim',[-150 350],'DataAspectRatio',[1 1 1])
+                case  3
+                    set(gca,'XLim',[-25 60], 'YLim',[1980 2040])
             end
             drawnow
         end        
@@ -159,17 +159,33 @@ while 1
     
     L=sqrt(sum(barvec.^2,2));                          % L = Bar lengths
     [~,distBarsMid] = shp.nearestNeighbor(barsmid);
-    hbars = distBarsMid./max(distBarsMid);
-    %     hbars=feval(fh,(p(bars(:,1),:)+p(bars(:,2),:))/2,varargin{:});
+    hbars = distBarsMid./max(distBarsMid);              % weighting of bar midpoint to boundary;
+    
+%     figHmax = figure();
+%     figHmax.Name = 'max';
+%     figHmin = figure();
+%     figHmin.Name = 'min';
+%     
+%     set(0,'CurrentFigure',figHmax)
+%     figHmaxAx = axes();
+%     pcshow([barsmid,hbars])
+%     set(gca,'DataAspectRatio',[1 1 100])
+%     
+%     set(0,'CurrentFigure',figHmin)
+%     figHminAx = axes();
+%     hbars = distBarsMid./min(distBarsMid);
+%     pcshow([barsmid,hbars])
+%     
     
     L0=hbars*Fscale*sqrt(sum(L.^2)/sum(hbars.^2));     % L0 = Desired lengths
     
-    % Density control - remove points that are too close
-    %     if mod(count,densityctrlfreq)==0 & any(L0>2*L)
-    %         p(setdiff(reshape(bars(L0>2*L,:),[],1),1:nfix),:)=[];
-    %         N=size(p,1); pold=inf;
-    %         continue;
-    %     end
+%     Density control - remove points that are too close
+        if mod(count,densityctrlfreq)==0 & any(L0>2*L)
+            p(setdiff(reshape(bars(L0>2*L,:),[],1),1:nfix),:)=[];
+            N=size(p,1);
+            pold=inf;
+            continue;
+        end
     
     F=max(L0-L,0);                                     % Bar forces (scalars)
     Fvec=F./L*[1,1].*barvec;                           % Bar forces (x,y components)
@@ -183,21 +199,31 @@ while 1
         pause();
     end
     p=p+deltat*Ftot;                                   % Update node positions
-    set(0,'CurrentFigure',figH(4));
-    quiver(p,Ftot)
     
     fprintf('[ %s ] distmesh2d [Discrete]: step 6 [ %.3f ]\n',datestr(now,'HH:mm:ss'),toc(st6t))
     
     % 7. Bring outside points back to the boundary
-        tic
-        d=feval(fd,p,varargin{:});                         % Find points outside (d>0)
-        ix=d>0;
-        dgradx=(feval(fd,[p(ix,1)+deps,p(ix,2)],varargin{:})-d(ix))/deps; % Numerical
-        dgrady=(feval(fd,[p(ix,1),p(ix,2)+deps],varargin{:})-d(ix))/deps; %    gradient
-        dgrad2=dgradx.^2+dgrady.^2;
-        p(ix,:)=p(ix,:)-[d(ix).*dgradx./dgrad2,d(ix).*dgrady./dgrad2];    % Project
-        fprintf('[ %s ] distmesh2d [Discrete]: step 7 [ %.3f ]\n',datestr(now,'HH:mm:ss'),toc)
+    tic
+%     xmask = ~(and(p(:,1)>bbox(1,1),p(:,1)<bbox(2,1)));
+%     ymask = ~(and(p(:,2)>bbox(1,2),p(:,2)<bbox(2,2)));
+    xmasklo = p(:,1)<bbox(1,1);
+    xmaskup = p(:,1)>bbox(2,1);
+    ymasklo = p(:,2)<bbox(1,2);
+    ymaskup = p(:,2)>bbox(2,2);
     
+    p(xmasklo,1) = bbox(1,1);
+    p(xmaskup,1) = bbox(2,1);
+    p(ymasklo,2) = bbox(1,2);
+    p(ymaskup,2) = bbox(2,2);
+%     
+%     d=feval(fd,p,varargin{:});                         % Find points outside (d>0)
+%     ix=d>0;
+%     dgradx=(feval(fd,[p(ix,1)+deps,p(ix,2)],varargin{:})-d(ix))/deps; % Numerical
+%     dgrady=(feval(fd,[p(ix,1),p(ix,2)+deps],varargin{:})-d(ix))/deps; %    gradient
+%     dgrad2=dgradx.^2+dgrady.^2;
+%     p(ix,:)=p(ix,:)-[d(ix).*dgradx./dgrad2,d(ix).*dgrady./dgrad2];    % Project
+%     fprintf('[ %s ] distmesh2d [Discrete]: step 7 [ %.3f ]\n',datestr(now,'HH:mm:ss'),toc)
+%     
     
     % 8. Termination criterion: All interior nodes move less than dptol (scaled)
     %     dp_av = max(sqrt(sum(deltat*Ftot(d<-geps,:).^2,2))/h0);             % delta point, actual value
@@ -207,22 +233,12 @@ while 1
         break;
     end
     
-    % 9. remove points outside of bounding box
-    rmPoints = ~(or(p(:,1)<extbbox(1,1),p(:,1)>extbbox(2,1)) | or(p(:,2)<extbbox(1,2),p(:,2)>extbbox(2,2)));
-    %     outsidePointH = line(p(rmPoints,1),p(rmPoints,2),'Marker','.','Color','g','LineStyle','none');
-    %     set(gca,'XLimMode','auto','YLimMode','auto')
-    p     = p(rmPoints,:);
-    pold  = pold(rmPoints,:);
-    pfix  = pfix(rmPoints,:);
-    xmask = xmask(rmPoints,:);
-    ymask = ymask(rmPoints,:);
-
     N=length(p);
     
     fprintf('[ %s ] distmesh2d [Discrete]: iteration %d done: [ %.3f ]\n',datestr(now,'HH:mm:ss'),count, toc(ittime))
     logt(count,:) = {count, ittime, dp_av, N, st3t, st4t, st5t, st6t};
     % plot
-    set(0,'CurrentFigure',figH(3))
+    set(0,'CurrentFigure',figH(1))
     subplot(2,1,1)
     line(logt.Step,logt.NumberPoints);
     subplot(2,1,2)
